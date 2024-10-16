@@ -202,12 +202,12 @@ func ensureKubeAPIServerCommandLineArgs(c *corev1.Container, k8sVersion *semver.
 		c.Command = extensionswebhook.EnsureStringWithPrefixContains(c.Command, "--disable-admission-plugins=",
 			"PersistentVolumeLabel", ",")
 	}
-	for i, v := range c.Command {
+	for i, v := range c.Args {
 		if strings.Contains(v, "--service-cluster-ip-range") {
-			c.Command = append(c.Command[:i], c.Command[i+1:]...)
+			c.Args = append(c.Args[:i], c.Args[i+1:]...)
 		}
 	}
-	c.Command = append(c.Command, "--service-cluster-ip-range=10.96.0.0/12,fd00::/108")
+	c.Args = append(c.Args, "--service-cluster-ip-range=10.96.0.0/12,fd00::/108")
 }
 
 func ensureKubeControllerManagerCommandLineArgs(c *corev1.Container, k8sVersion *semver.Version) {

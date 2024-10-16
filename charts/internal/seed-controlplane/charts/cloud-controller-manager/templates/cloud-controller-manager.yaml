@@ -45,9 +45,9 @@ spec:
         - --cloud-provider=gce
         - --service-cluster-ip-range=10.96.0.0/12,fd00::/108
         - --cloud-config=/etc/kubernetes/cloudprovider/cloudprovider.conf
-        #- --cluster-cidr={{ .Values.podNetwork }}
+        - --cluster-cidr=192.168.0.0/16
         - --cluster-name={{ .Values.clusterName }}
-        - --cidr-allocator-type="CloudAllocator"
+        - --cidr-allocator-type=CloudAllocator
         - --concurrent-service-syncs=10
         - --configure-cloud-routes={{ .Values.configureCloudRoutes }}
         {{- include "cloud-controller-manager.featureGates" . | trimSuffix "," | indent 8 }}
