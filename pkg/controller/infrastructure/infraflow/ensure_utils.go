@@ -294,6 +294,9 @@ func firewallRuleAllowHealthChecks(name, network string) *compute.Firewall {
 			"209.85.204.0/22",
 			"209.85.152.0/22",
 			"130.211.0.0/22",
+			"2600:2d00:1:b029::/64",
+			"2600:2d00:1:1::/64",
+			"2600:1901:8001::/48",
 		},
 		Allowed: []*compute.FirewallAllowed{
 			{
