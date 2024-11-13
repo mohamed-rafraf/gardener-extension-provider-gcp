@@ -283,21 +283,29 @@ func firewallRuleAllowExternal(name, network string) *compute.Firewall {
 	}
 }
 
-func firewallRuleAllowHealthChecks(name, network string) *compute.Firewall {
+// Following ranges documented at https://cloud.google.com/load-balancing/docs/health-check-concepts#ip-ranges
+var (
+	healthCheckSourceRangesIPv4 = []string{
+		"35.191.0.0/16",
+		"209.85.204.0/22",
+		"209.85.152.0/22",
+		"130.211.0.0/22",
+	}
+
+	healthCheckSourceRangesIPv6 = []string{
+		"2600:2d00:1:b029::/64",
+		"2600:2d00:1:1::/64",
+		"2600:1901:8001::/48",
+	}
+)
+
+func firewallRuleAllowHealthChecks(name, network string, cidrs []string) *compute.Firewall {
 	return &compute.Firewall{
-		Name:      name,
-		Network:   network,
-		Direction: "INGRESS",
-		Priority:  1000,
-		SourceRanges: []string{
-			"35.191.0.0/16",
-			"209.85.204.0/22",
-			"209.85.152.0/22",
-			"130.211.0.0/22",
-			"2600:2d00:1:b029::/64",
-			"2600:2d00:1:1::/64",
-			"2600:1901:8001::/48",
-		},
+		Name:         name,
+		Network:      network,
+		Direction:    "INGRESS",
+		Priority:     1000,
+		SourceRanges: cidrs,
 		Allowed: []*compute.FirewallAllowed{
 			{
 				IPProtocol: "udp",

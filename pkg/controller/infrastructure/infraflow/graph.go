@@ -40,7 +40,7 @@ func (fctx *FlowContext) buildReconcileGraph() *flow.Graph {
 		shared.Dependencies(ensureVPC),
 		shared.DoIf(fctx.config.Networks.DualStack != nil && fctx.config.Networks.DualStack.Enabled),
 	)
-	fctx.AddTask(g, "ensure IPv6 CIDR services", fctx.ensureIPv6CIDRs,
+	ensureIPv6Services := fctx.AddTask(g, "ensure IPv6 CIDR services", fctx.ensureIPv6CIDRs,
 		shared.Timeout(defaultCreateTimeout),
 		shared.Dependencies(ensureNodesSubnet, ensureServicesSubnet),
 		shared.DoIf(fctx.config.Networks.DualStack != nil && fctx.config.Networks.DualStack.Enabled),
@@ -55,11 +55,11 @@ func (fctx *FlowContext) buildReconcileGraph() *flow.Graph {
 	)
 	fctx.AddTask(g, "ensure nats", fctx.ensureCloudNAT,
 		shared.Timeout(defaultCreateTimeout),
-		shared.Dependencies(ensureRouter, ensureNodesSubnet, ensureIpAddresses))
-
+		shared.Dependencies(ensureRouter, ensureNodesSubnet, ensureIpAddresses),
+	)
 	fctx.AddTask(g, "ensure firewall", fctx.ensureFirewallRules,
 		shared.Timeout(defaultCreateTimeout),
-		shared.Dependencies(ensureVPC, ensureNodesSubnet, ensureInternalSubnet),
+		shared.Dependencies(ensureVPC, ensureNodesSubnet, ensureInternalSubnet, ensureIPv6Services),
 	)
 
 	return g

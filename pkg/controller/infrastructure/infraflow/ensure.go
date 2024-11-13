@@ -367,16 +367,27 @@ func (fctx *FlowContext) ensureFirewallRules(ctx context.Context) error {
 		ptr.To(fctx.config.Networks.Workers),
 		ptr.To(fctx.config.Networks.Worker),
 	}
-	if nodesipv6 := GetObject[string](fctx.whiteboard, NodesSubnetIPv6CIDR); nodesipv6 != "" {
-		cidrs = append(cidrs, ptr.To(nodesipv6))
-	}
-	if servicesipv6 := GetObject[string](fctx.whiteboard, ServicesSubnetIPv6CIDR); servicesipv6 != "" {
-		cidrs = append(cidrs, ptr.To(servicesipv6))
-	}
+
 	rules := []*compute.Firewall{
 		firewallRuleAllowInternal(firewallRuleAllowInternalName(fctx.clusterName), vpc.SelfLink, cidrs),
-		firewallRuleAllowHealthChecks(firewallRuleAllowHealthChecksName(fctx.clusterName), vpc.SelfLink),
+		firewallRuleAllowHealthChecks(firewallRuleAllowHealthChecksName(fctx.clusterName), vpc.SelfLink, healthCheckSourceRangesIPv4),
 	}
+
+	cidrsipv6 := []*string{}
+	if nodesipv6 := GetObject[string](fctx.whiteboard, NodesSubnetIPv6CIDR); nodesipv6 != "" {
+		cidrsipv6 = append(cidrsipv6, ptr.To(nodesipv6))
+	}
+	if servicesipv6 := GetObject[string](fctx.whiteboard, ServicesSubnetIPv6CIDR); servicesipv6 != "" {
+		cidrsipv6 = append(cidrsipv6, ptr.To(servicesipv6))
+	}
+
+	if len(cidrsipv6) > 0 {
+		rules = append(rules,
+			firewallRuleAllowInternal(firewallRuleAllowInternalName(fctx.clusterName)+"-ipv6", vpc.SelfLink, cidrsipv6),
+			firewallRuleAllowHealthChecks(firewallRuleAllowHealthChecksName(fctx.clusterName)+"-ipv6", vpc.SelfLink, healthCheckSourceRangesIPv6),
+		)
+	}
+
 	for _, rule := range rules {
 		gcprule, err := fctx.computeClient.GetFirewallRule(ctx, rule.Name)
 		if err != nil {
