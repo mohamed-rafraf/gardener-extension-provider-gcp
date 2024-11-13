@@ -369,7 +369,18 @@ func (fctx *FlowContext) ensureFirewallRules(ctx context.Context) error {
 	}
 	vpc := GetObject[*compute.Network](fctx.whiteboard, ObjectKeyVPC)
 
-	cidrs := []*string{fctx.podCIDR, fctx.config.Networks.Internal, ptr.To(fctx.config.Networks.Workers), ptr.To(fctx.config.Networks.Worker)}
+	cidrs := []*string{
+		fctx.podCIDR,
+		fctx.config.Networks.Internal,
+		ptr.To(fctx.config.Networks.Workers),
+		ptr.To(fctx.config.Networks.Worker),
+	}
+	if nodesipv6 := GetObject[string](fctx.whiteboard, NodesSubnetIPv6CIDR); nodesipv6 != "" {
+		cidrs = append(cidrs, ptr.To(nodesipv6))
+	}
+	if servicesipv6 := GetObject[string](fctx.whiteboard, ServicesSubnetIPv6CIDR); servicesipv6 != "" {
+		cidrs = append(cidrs, ptr.To(servicesipv6))
+	}
 	rules := []*compute.Firewall{
 		firewallRuleAllowInternal(firewallRuleAllowInternalName(fctx.clusterName), vpc.SelfLink, cidrs),
 		firewallRuleAllowHealthChecks(firewallRuleAllowHealthChecksName(fctx.clusterName), vpc.SelfLink),
