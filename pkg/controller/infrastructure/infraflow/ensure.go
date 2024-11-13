@@ -90,10 +90,6 @@ func (fctx *FlowContext) ensureUserManagedVPC(ctx context.Context) error {
 }
 
 func (fctx *FlowContext) ensureIPv6CIDRs(ctx context.Context) error {
-	if netcfg := fctx.config.Networks; netcfg.DualStack == nil || !netcfg.DualStack.Enabled {
-		return nil
-	}
-
 	nodeSubnet := fctx.whiteboard.GetObject(ObjectKeyNodeSubnet).(*compute.Subnetwork)
 	if nodeSubnet == nil {
 		return fmt.Errorf("failed to get the subnet for nodes")
@@ -169,7 +165,7 @@ func (fctx *FlowContext) ensureInternalSubnet(ctx context.Context) error {
 	region := fctx.infra.Spec.Region
 
 	if fctx.config.Networks.Internal == nil {
-		return fctx.ensureInternalSubnetDeleted(ctx)
+		return fctx.ensureSubnetDeletedFabrica(fctx.internalSubnetNameFromConfig(), ObjectKeyInternalSubnet)(ctx)
 	}
 
 	if err := fctx.ensureObjectKeys(ObjectKeyVPC); err != nil {
@@ -211,10 +207,6 @@ func (fctx *FlowContext) ensureInternalSubnet(ctx context.Context) error {
 
 func (fctx *FlowContext) ensureServicesSubnet(ctx context.Context) error {
 	region := fctx.infra.Spec.Region
-
-	if !fctx.config.Networks.DualStack.Enabled {
-		return nil
-	}
 
 	if err := fctx.ensureObjectKeys(ObjectKeyVPC); err != nil {
 		return err
@@ -417,30 +409,19 @@ func (fctx *FlowContext) ensureVPCDeleted(ctx context.Context) error {
 	return nil
 }
 
-func (fctx *FlowContext) ensureSubnetDeleted(ctx context.Context) error {
-	subnetName := fctx.subnetNameFromConfig()
+func (fctx *FlowContext) ensureSubnetDeletedFabrica(subnetName string, whiteboardKey string) func(context.Context) error {
+	return func(ctx context.Context) error {
+		log := shared.LogFromContext(ctx)
 
-	err := fctx.computeClient.DeleteSubnet(ctx, fctx.infra.Spec.Region, subnetName)
-	if err != nil {
-		return err
+		log.Info("deleting %s subnet", subnetName)
+		err := fctx.computeClient.DeleteSubnet(ctx, fctx.infra.Spec.Region, subnetName)
+		if err != nil {
+			return err
+		}
+
+		fctx.whiteboard.DeleteObject(whiteboardKey)
+		return nil
 	}
-
-	fctx.whiteboard.DeleteObject(ObjectKeyNodeSubnet)
-	return nil
-}
-
-func (fctx *FlowContext) ensureInternalSubnetDeleted(ctx context.Context) error {
-	log := shared.LogFromContext(ctx)
-
-	subnetName := fctx.internalSubnetNameFromConfig()
-	log.Info("deleting internal subnet")
-	err := fctx.computeClient.DeleteSubnet(ctx, fctx.infra.Spec.Region, subnetName)
-	if err != nil {
-		return err
-	}
-
-	fctx.whiteboard.DeleteObject(ObjectKeyInternalSubnet)
-	return nil
 }
 
 func (fctx *FlowContext) ensureServiceAccountDeleted(ctx context.Context) error {
