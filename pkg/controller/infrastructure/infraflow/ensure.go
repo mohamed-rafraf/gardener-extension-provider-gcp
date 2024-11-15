@@ -374,11 +374,11 @@ func (fctx *FlowContext) ensureFirewallRules(ctx context.Context) error {
 	}
 
 	cidrsipv6 := []*string{}
-	if nodesipv6 := GetObject[string](fctx.whiteboard, NodesSubnetIPv6CIDR); nodesipv6 != "" {
-		cidrsipv6 = append(cidrsipv6, ptr.To(nodesipv6))
+	if nodesipv6 := fctx.whiteboard.Get(NodesSubnetIPv6CIDR); ptr.Deref(nodesipv6, "") != "" {
+		cidrsipv6 = append(cidrsipv6, nodesipv6)
 	}
-	if servicesipv6 := GetObject[string](fctx.whiteboard, ServicesSubnetIPv6CIDR); servicesipv6 != "" {
-		cidrsipv6 = append(cidrsipv6, ptr.To(servicesipv6))
+	if servicesipv6 := fctx.whiteboard.Get(ServicesSubnetIPv6CIDR); ptr.Deref(servicesipv6, "") != "" {
+		cidrsipv6 = append(cidrsipv6, servicesipv6)
 	}
 
 	if len(cidrsipv6) > 0 {
