@@ -165,7 +165,7 @@ func (fctx *FlowContext) ensureInternalSubnet(ctx context.Context) error {
 	region := fctx.infra.Spec.Region
 
 	if fctx.config.Networks.Internal == nil {
-		return fctx.ensureSubnetDeletedFabrica(fctx.internalSubnetNameFromConfig(), ObjectKeyInternalSubnet)(ctx)
+		return fctx.ensureSubnetDeletedFactory(fctx.internalSubnetNameFromConfig(), ObjectKeyInternalSubnet)(ctx)
 	}
 
 	if err := fctx.ensureObjectKeys(ObjectKeyVPC); err != nil {
@@ -420,11 +420,11 @@ func (fctx *FlowContext) ensureVPCDeleted(ctx context.Context) error {
 	return nil
 }
 
-func (fctx *FlowContext) ensureSubnetDeletedFabrica(subnetName string, whiteboardKey string) func(context.Context) error {
+func (fctx *FlowContext) ensureSubnetDeletedFactory(subnetName string, whiteboardKey string) func(context.Context) error {
 	return func(ctx context.Context) error {
 		log := shared.LogFromContext(ctx)
 
-		log.Info("deleting %s subnet", subnetName)
+		log.Info("deleting", "subnet", subnetName)
 		err := fctx.computeClient.DeleteSubnet(ctx, fctx.infra.Spec.Region, subnetName)
 		if err != nil {
 			return err
@@ -512,7 +512,7 @@ func (fctx *FlowContext) ensureFirewallRulesDeleted(ctx context.Context) error {
 	}
 
 	for _, fw := range fws {
-		log.Info(fmt.Sprintf("destroying firewall rule [name=%s]", fw.Name))
+		log.Info("destroying firewall rule", "name", fw.Name)
 		err := fctx.computeClient.DeleteFirewallRule(ctx, fw.Name)
 		if err != nil {
 			return err
@@ -543,7 +543,7 @@ func (fctx *FlowContext) ensureKubernetesRoutesDeleted(ctx context.Context) erro
 	}
 
 	for _, route := range routes {
-		log.Info(fmt.Sprintf("destroying route[name=%s]", route.Name))
+		log.Info("destroying route", "name", route.Name)
 		err := fctx.computeClient.DeleteRoute(ctx, route.Name)
 		if err != nil {
 			return err

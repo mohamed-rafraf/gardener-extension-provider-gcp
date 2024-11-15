@@ -81,12 +81,12 @@ func (fctx *FlowContext) buildDeleteGraph() *flow.Graph {
 	)
 	ensureInternalSubnetDeleted := fctx.AddTask(g,
 		"destroy internal subnet",
-		fctx.ensureSubnetDeletedFabrica(fctx.internalSubnetNameFromConfig(), ObjectKeyInternalSubnet),
+		fctx.ensureSubnetDeletedFactory(fctx.internalSubnetNameFromConfig(), ObjectKeyInternalSubnet),
 		shared.Timeout(defaultDeleteTimeout),
 	)
 	ensureServicesSubnetDeleted := fctx.AddTask(g,
 		"destroy services subnet",
-		fctx.ensureSubnetDeletedFabrica(fctx.servicesSubnetNameFromConfig(), ObjectKeyServicesSubnet),
+		fctx.ensureSubnetDeletedFactory(fctx.servicesSubnetNameFromConfig(), ObjectKeyServicesSubnet),
 		shared.Timeout(defaultDeleteTimeout),
 		shared.DoIf(fctx.config.Networks.DualStack != nil && fctx.config.Networks.DualStack.Enabled),
 	)
@@ -98,7 +98,7 @@ func (fctx *FlowContext) buildDeleteGraph() *flow.Graph {
 	)
 	ensureSubnetDeleted := fctx.AddTask(g,
 		"destroy worker subnet",
-		fctx.ensureSubnetDeletedFabrica(fctx.subnetNameFromConfig(), ObjectKeyNodeSubnet),
+		fctx.ensureSubnetDeletedFactory(fctx.subnetNameFromConfig(), ObjectKeyNodeSubnet),
 		shared.Timeout(defaultDeleteTimeout),
 		shared.Dependencies(ensureCloudRouterDeleted),
 	)
