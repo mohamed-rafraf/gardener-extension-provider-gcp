@@ -442,6 +442,11 @@ func (vp *valuesProvider) getCCMChartValues(
 		return nil, fmt.Errorf("secret %q not found", cloudControllerManagerServerName)
 	}
 
+	overlayEnabled, err := vp.isOverlayEnabled(cluster.Shoot.Spec.Networking)
+	if err != nil {
+		return nil, err
+	}
+
 	values := map[string]interface{}{
 		"enabled":           true,
 		"replicas":          extensionscontroller.GetControlPlaneReplicas(cluster, scaledDown, 1),
@@ -461,17 +466,18 @@ func (vp *valuesProvider) getCCMChartValues(
 			"server": serverSecret.Name,
 		},
 		"gep19Monitoring": gep19Monitoring,
+		"configureCloudRoutes": func() bool {
+			if isDualstackEnabled(cluster.Shoot.Spec.Networking) {
+				return false
+			}
+
+			return !overlayEnabled
+		}(),
 	}
 
 	if cpConfig.CloudControllerManager != nil {
 		values["featureGates"] = cpConfig.CloudControllerManager.FeatureGates
 	}
-
-	overlayEnabled, err := vp.isOverlayEnabled(cluster.Shoot.Spec.Networking)
-	if err != nil {
-		return nil, err
-	}
-	values["configureCloudRoutes"] = !overlayEnabled || !isDualstackEnabled(cluster.Shoot.Spec.Networking)
 
 	return values, nil
 }
