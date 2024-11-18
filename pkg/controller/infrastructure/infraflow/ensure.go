@@ -383,8 +383,8 @@ func (fctx *FlowContext) ensureFirewallRules(ctx context.Context) error {
 
 	if len(cidrsipv6) > 0 {
 		rules = append(rules,
-			firewallRuleAllowInternal(firewallRuleAllowInternalName(fctx.clusterName)+"-ipv6", vpc.SelfLink, cidrsipv6),
-			firewallRuleAllowHealthChecks(firewallRuleAllowHealthChecksName(fctx.clusterName)+"-ipv6", vpc.SelfLink, healthCheckSourceRangesIPv6),
+			firewallRuleAllowInternalIPv6(firewallRuleAllowInternalNameIPv6(fctx.clusterName), vpc.SelfLink, cidrsipv6),
+			firewallRuleAllowHealthChecks(firewallRuleAllowHealthChecksNameIPv6(fctx.clusterName), vpc.SelfLink, healthCheckSourceRangesIPv6),
 		)
 	}
 

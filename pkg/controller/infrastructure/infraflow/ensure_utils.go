@@ -80,12 +80,20 @@ func firewallRuleAllowInternalName(base string) string {
 	return fmt.Sprintf("%s-allow-internal-access", base)
 }
 
+func firewallRuleAllowInternalNameIPv6(base string) string {
+	return fmt.Sprintf("%s-allow-internal-access-ipv6", base)
+}
+
 func firewallRuleAllowExternalName(base string) string {
 	return fmt.Sprintf("%s-allow-external-access", base)
 }
 
 func firewallRuleAllowHealthChecksName(base string) string {
 	return fmt.Sprintf("%s-allow-health-checks", base)
+}
+
+func firewallRuleAllowHealthChecksNameIPv6(base string) string {
+	return fmt.Sprintf("%s-allow-health-checks-ipv6", base)
 }
 
 func targetNetwork(name string) *compute.Network {
@@ -231,6 +239,11 @@ func targetNATState(name, subnetURL string, natConfig *gcp.CloudNAT, natIps []*c
 	return nat
 }
 
+const (
+	ippritocolICMPv4 = "icmp"
+	ippritocolICMPv6 = "58" // we have use the number as GCP doesn't recognize any variants of the name for ICMPv6
+)
+
 func firewallRuleAllowInternal(name, network string, cidrs []*string) *compute.Firewall {
 	firewall := &compute.Firewall{
 		Name:      name,
@@ -239,7 +252,7 @@ func firewallRuleAllowInternal(name, network string, cidrs []*string) *compute.F
 		Priority:  1000,
 		Allowed: []*compute.FirewallAllowed{
 			{
-				IPProtocol: "icmp",
+				IPProtocol: ippritocolICMPv4,
 			},
 			{
 				IPProtocol: "ipip",
@@ -265,22 +278,38 @@ func firewallRuleAllowInternal(name, network string, cidrs []*string) *compute.F
 	return firewall
 }
 
-func firewallRuleAllowExternal(name, network string) *compute.Firewall {
-	return &compute.Firewall{
+func firewallRuleAllowInternalIPv6(name, network string, cidrs []*string) *compute.Firewall {
+	firewall := &compute.Firewall{
+		Name:      name,
+		Network:   network,
+		Direction: "INGRESS",
+		Priority:  1000,
 		Allowed: []*compute.FirewallAllowed{
 			{
+				IPProtocol: ippritocolICMPv6,
+			},
+			{
+				IPProtocol: "ipip",
+			},
+			{
 				IPProtocol: "tcp",
-				Ports:      []string{"443"},
+				Ports:      []string{"1-65535"},
+			},
+			{
+				IPProtocol: "udp",
+				Ports:      []string{"1-65535"},
 			},
 		},
-		SourceRanges:    []string{"0.0.0.0/0"},
-		Direction:       "INGRESS",
-		Name:            name,
-		Network:         network,
-		Priority:        1000,
 		ForceSendFields: []string{"Disabled"},
 		NullFields:      []string{"Denied", "DestinationRanges", "SourceServiceAccounts", "SourceTags", "TargetTags", "TargetServiceAccounts"},
 	}
+	for _, cidr := range cidrs {
+		if cidr != nil && len(*cidr) > 0 {
+			firewall.SourceRanges = append(firewall.SourceRanges, *cidr)
+		}
+	}
+
+	return firewall
 }
 
 // Following ranges documented at https://cloud.google.com/load-balancing/docs/health-check-concepts#ip-ranges
