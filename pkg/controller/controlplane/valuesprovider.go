@@ -161,6 +161,7 @@ var (
 				Objects: []*chart.Object{
 					{Type: &appsv1.Deployment{}, Name: gcp.IngressGCEName},
 					{Type: &autoscalingv1.VerticalPodAutoscaler{}, Name: gcp.IngressGCEName},
+					{Type: &corev1.ServiceAccount{}, Name: "glbc"},
 				},
 			},
 		},
@@ -614,7 +615,7 @@ func getNetworkNames(
 	}
 
 	subNetworkName := ""
-	subnet, _ := apihelper.FindSubnetForPurpose(infraStatus.Networks.Subnets, apisgcp.PurposeInternal)
+	subnet, _ := apihelper.FindSubnetForPurpose(infraStatus.Networks.Subnets, apisgcp.PurposeNodes)
 	if subnet != nil {
 		subNetworkName = subnet.Name
 	}
