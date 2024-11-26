@@ -31,6 +31,7 @@ import (
 	"github.com/gardener/gardener-extension-provider-gcp/charts"
 	apisgcp "github.com/gardener/gardener-extension-provider-gcp/pkg/apis/gcp"
 	gcpapihelper "github.com/gardener/gardener-extension-provider-gcp/pkg/apis/gcp/helper"
+	"github.com/gardener/gardener-extension-provider-gcp/pkg/controller/infrastructure/infraflow"
 	"github.com/gardener/gardener-extension-provider-gcp/pkg/gcp"
 )
 
@@ -200,9 +201,12 @@ func (w *workerDelegate) generateMachineConfig(ctx context.Context) error {
 				"machineType": pool.MachineType,
 				"networkInterfaces": []map[string]interface{}{
 					{
-						"subnetwork":        nodesSubnet.Name,
-						"disableExternalIP": true,
-						"dualStack":         infrastructureStatus.Networks.DualStackEnabled,
+						"subnetwork":          nodesSubnet.Name,
+						"disableExternalIP":   true,
+						"stackType":           w.getStackType(),
+						"ipv6accessType":      "EXTERNAL",
+						"ipCidrRange":         w.calculateIpv4PodCIDRNodeMask(*w.cluster.Shoot.Spec.Networking.Pods),
+						"subnetworkRangeName": infraflow.DefaultSecondarySubnetName,
 					},
 				},
 				"secret": map[string]interface{}{
