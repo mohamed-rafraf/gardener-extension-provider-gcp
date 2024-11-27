@@ -205,7 +205,7 @@ func (w *workerDelegate) generateMachineConfig(ctx context.Context) error {
 						"disableExternalIP":   true,
 						"stackType":           w.getStackType(),
 						"ipv6accessType":      "EXTERNAL",
-						"ipCidrRange":         fmt.Sprintf("%d",*w.cluster.Shoot.Kubernetes.KubeControllerManager.NodeCIDRMaskSize),
+						"ipCidrRange":         fmt.Sprintf("%d", *w.cluster.Shoot.Spec.Kubernetes.KubeControllerManager.NodeCIDRMaskSize),
 						"subnetworkRangeName": infraflow.DefaultSecondarySubnetName,
 					},
 				},
