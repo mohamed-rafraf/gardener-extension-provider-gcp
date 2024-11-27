@@ -20,6 +20,8 @@ const (
 	DefaultFlowSampling = 0.5
 	// DefaultMetadata is the default value for the Flow Logs metadata.
 	DefaultMetadata = "EXCLUDE_ALL_METADATA"
+	// DefaultSecondarySubnetName is the default name of the secondary ipv4 subnet that will be used in dualstack shoot
+	DefaultSecondarySubnetName = "ipv4-pod-cidr"
 )
 
 // GetObject returns the object and attempts to cast it to the specified type.
@@ -127,7 +129,7 @@ func targetSubnetState(name, description, cidr, networkName string, flowLogs *gc
 		subnet.SecondaryIpRanges = []*compute.SubnetworkSecondaryRange{
 			{
 				IpCidrRange: *secondaryRange,
-				RangeName:   "ipv4-pod-cidr",
+				RangeName:   DefaultSecondarySubnetName,
 			},
 		}
 	}
