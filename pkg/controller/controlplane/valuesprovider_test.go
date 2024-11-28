@@ -360,7 +360,7 @@ var _ = Describe("ValuesProvider", func() {
 						"caBundle": "",
 					},
 				}),
-				gcp.DefaultHTTPBackendImageName: map[string]interface{}{
+				"default-http-backend": map[string]interface{}{
 					"enabled": isDualstackEnabled(cluster.Shoot.Spec.Networking),
 				},
 			}))
