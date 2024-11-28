@@ -88,7 +88,7 @@ var _ = Describe("ValuesProvider", func() {
 							Subnets: []apisgcp.Subnet{
 								{
 									Name:    "subnet-acbd1234",
-									Purpose: apisgcp.PurposeNodes,
+									Purpose: apisgcp.PurposeInternal,
 								},
 							},
 						},
@@ -249,6 +249,7 @@ var _ = Describe("ValuesProvider", func() {
 				gcp.CloudControllerManagerName: utils.MergeMaps(ccmChartValues, map[string]interface{}{
 					"kubernetesVersion": cluster.Shoot.Spec.Kubernetes.Version,
 					"gep19Monitoring":   false,
+					"allocatorType":     "CloudAllocator",
 				}),
 				gcp.CSIControllerName: utils.MergeMaps(enabledTrue, map[string]interface{}{
 					"replicas":  1,
@@ -287,6 +288,7 @@ var _ = Describe("ValuesProvider", func() {
 			Expect(values[gcp.CloudControllerManagerName]).To(Equal(utils.MergeMaps(ccmChartValues, map[string]interface{}{
 				"kubernetesVersion":    cluster.Shoot.Spec.Kubernetes.Version,
 				"configureCloudRoutes": false,
+				"allocatorType":        "CloudAllocator",
 				"gep19Monitoring":      false,
 			})))
 		})
