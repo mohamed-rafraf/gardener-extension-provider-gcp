@@ -183,6 +183,11 @@ func (w *workerDelegate) generateMachineConfig(ctx context.Context) error {
 
 		for zoneIndex, zone := range pool.Zones {
 			zoneIdx := int32(zoneIndex) // #nosec: G115 - We check if pool zones exceeds max_int32.
+			ipCidrRange := "/24"
+			if kcc := w.cluster.Shoot.Spec.Kubernetes.KubeControllerManager; kcc != nil && kcc.NodeCIDRMaskSize != nil {
+				ipCidrRange = fmt.Sprintf("%d", *kcc.NodeCIDRMaskSize)
+			}
+
 			machineClassSpec := map[string]interface{}{
 				"region":             w.worker.Spec.Region,
 				"zone":               zone,
@@ -205,7 +210,7 @@ func (w *workerDelegate) generateMachineConfig(ctx context.Context) error {
 						"disableExternalIP":   true,
 						"stackType":           w.getStackType(),
 						"ipv6accessType":      "EXTERNAL",
-						"ipCidrRange":         fmt.Sprintf("%d", *w.cluster.Shoot.Spec.Kubernetes.KubeControllerManager.NodeCIDRMaskSize),
+						"ipCidrRange":         ipCidrRange,
 						"subnetworkRangeName": infraflow.DefaultSecondarySubnetName,
 					},
 				},
@@ -427,7 +432,7 @@ func addDiskEncryptionDetails(disk map[string]interface{}, encryption *apisgcp.D
 	if encryption == nil {
 		return
 	}
-	var encryptionMap = make(map[string]interface{})
+	encryptionMap := make(map[string]interface{})
 	if encryption.KmsKeyName != nil {
 		encryptionMap["kmsKeyName"] = *encryption.KmsKeyName
 	}
