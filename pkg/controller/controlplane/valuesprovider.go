@@ -160,7 +160,7 @@ var (
 				},
 				Objects: []*chart.Object{
 					{Type: &appsv1.Deployment{}, Name: gcp.IngressGCEName},
-					{Type: &autoscalingv1.VerticalPodAutoscaler{}, Name: gcp.IngressGCEName},
+					{Type: &autoscalingv1.VerticalPodAutoscaler{}, Name: gcp.IngressGCEName + "-vpa"},
 					{Type: &corev1.ServiceAccount{}, Name: "glbc"},
 				},
 			},
