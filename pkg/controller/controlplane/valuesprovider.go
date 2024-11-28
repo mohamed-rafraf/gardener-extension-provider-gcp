@@ -14,7 +14,7 @@ import (
 	extensionscontroller "github.com/gardener/gardener/extensions/pkg/controller"
 	"github.com/gardener/gardener/extensions/pkg/controller/controlplane/genericactuator"
 	extensionssecretsmanager "github.com/gardener/gardener/extensions/pkg/util/secret/manager"
-	gardencorcorev1beta1 "github.com/gardener/gardener/pkg/apis/core/v1beta1"
+	gardencorev1beta1 "github.com/gardener/gardener/pkg/apis/core/v1beta1"
 	v1beta1constants "github.com/gardener/gardener/pkg/apis/core/v1beta1/constants"
 	gardencorev1beta1helper "github.com/gardener/gardener/pkg/apis/core/v1beta1/helper"
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
@@ -420,9 +420,9 @@ func (vp *valuesProvider) getControlPlaneChartValues(
 	}, nil
 }
 
-func isDualstackEnabled(networking *gardencorcorev1beta1.Networking) bool {
+func isDualstackEnabled(networking *gardencorev1beta1.Networking) bool {
 	if networking != nil {
-		return !gardencorcorev1beta1.IsIPv4SingleStack(networking.IPFamilies)
+		return !gardencorev1beta1.IsIPv4SingleStack(networking.IPFamilies)
 	}
 
 	return false
@@ -449,6 +449,7 @@ func (vp *valuesProvider) getCCMChartValues(
 		"clusterName":       cp.Namespace,
 		"kubernetesVersion": cluster.Shoot.Spec.Kubernetes.Version,
 		"podNetwork":        strings.Join(extensionscontroller.GetPodNetwork(cluster), ","),
+		"allocatorType":     "RangeAllocator",
 		"serviceNetwork":    strings.Join(extensionscontroller.GetServiceNetwork(cluster), ","),
 		"podAnnotations": map[string]interface{}{
 			"checksum/secret-" + v1beta1constants.SecretNameCloudProvider: checksums[v1beta1constants.SecretNameCloudProvider],
@@ -476,6 +477,7 @@ func (vp *valuesProvider) getCCMChartValues(
 
 	if isDualstackEnabled(cluster.Shoot.Spec.Networking) {
 		values["configureCloudRoutes"] = false
+		values["allocatorType"] = "CloudAllocator"
 	}
 
 	return values, nil
@@ -585,7 +587,7 @@ func getNetworkNames(
 	}
 
 	subNetworkName := ""
-	subnet, _ := apihelper.FindSubnetForPurpose(infraStatus.Networks.Subnets, apisgcp.PurposeNodes)
+	subnet, _ := apihelper.FindSubnetForPurpose(infraStatus.Networks.Subnets, apisgcp.PurposeInternal)
 	if subnet != nil {
 		subNetworkName = subnet.Name
 	}
@@ -593,7 +595,7 @@ func getNetworkNames(
 	return networkName, subNetworkName
 }
 
-func (vp *valuesProvider) isOverlayEnabled(network *gardencorcorev1beta1.Networking) (bool, error) {
+func (vp *valuesProvider) isOverlayEnabled(network *gardencorev1beta1.Networking) (bool, error) {
 	if network == nil || network.ProviderConfig == nil {
 		return true, nil
 	}
