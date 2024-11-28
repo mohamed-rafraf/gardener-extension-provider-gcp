@@ -572,7 +572,7 @@ func getControlPlaneShootChartValues(
 				"caBundle": string(caSecret.Data[secretutils.DataKeyCertificateBundle]),
 			},
 		},
-		gcp.DefaultHTTPBackendImageName: map[string]interface{}{
+		"default-http-backend": map[string]interface{}{
 			"enabled": isDualstackEnabled(cluster.Shoot.Spec.Networking),
 		},
 	}, nil
