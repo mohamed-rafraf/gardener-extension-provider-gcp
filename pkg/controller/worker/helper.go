@@ -31,7 +31,7 @@ func (w *workerDelegate) decodeWorkerProviderStatus() (*api.WorkerStatus, error)
 }
 
 func (w *workerDelegate) updateWorkerProviderStatus(ctx context.Context, workerStatus *api.WorkerStatus) error {
-	var workerStatusV1alpha1 = &v1alpha1.WorkerStatus{
+	workerStatusV1alpha1 := &v1alpha1.WorkerStatus{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: v1alpha1.SchemeGroupVersion.String(),
 			Kind:       "WorkerStatus",
@@ -48,8 +48,9 @@ func (w *workerDelegate) updateWorkerProviderStatus(ctx context.Context, workerS
 }
 
 func (w *workerDelegate) getStackType() string {
-	if len(w.cluster.Shoot.Spec.Networking.IPFamilies) > 1 {
+	if nw := w.cluster.Shoot.Spec.Networking; nw != nil && len(nw.IPFamilies) > 1 {
 		return "IPV4_IPV6"
 	}
+
 	return "IPV4_ONLY"
 }
