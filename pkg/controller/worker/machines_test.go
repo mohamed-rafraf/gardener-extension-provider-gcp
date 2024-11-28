@@ -479,9 +479,12 @@ var _ = Describe("Machines", func() {
 						"minCpuPlatform": minCpuPlatform,
 						"networkInterfaces": []map[string]interface{}{
 							{
-								"subnetwork":        subnetName,
-								"disableExternalIP": disableExternalIP,
-								"dualStack":         false,
+								"subnetwork":          subnetName,
+								"disableExternalIP":   disableExternalIP,
+								"stackType":           "IPV4_ONLY",
+								"ipv6accessType":      "EXTERNAL",
+								"ipCidrRange":         "/24",
+								"subnetworkRangeName": "ipv4-pod-cidr",
 							},
 						},
 						"scheduling": map[string]interface{}{
