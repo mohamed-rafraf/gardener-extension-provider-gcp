@@ -25,7 +25,7 @@ func NewActuator(mgr manager.Manager, disableProjectedTokenMount bool) infrastru
 	return &actuator{
 		client:                     mgr.GetClient(),
 		restConfig:                 mgr.GetConfig(),
-		disableProjectedTokenMount: true,
+		disableProjectedTokenMount: disableProjectedTokenMount,
 	}
 }
 
