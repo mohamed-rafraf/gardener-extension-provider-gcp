@@ -8,6 +8,7 @@ import (
 
 	"github.com/gardener/gardener/extensions/pkg/controller"
 	"github.com/gardener/gardener/pkg/apis/core/v1beta1"
+	gardencorev1beta1 "github.com/gardener/gardener/pkg/apis/core/v1beta1"
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
 	"github.com/gardener/gardener/pkg/utils/flow"
 	"github.com/go-logr/logr"
@@ -182,14 +183,10 @@ func (fctx *FlowContext) getStatus() *v1alpha1.InfrastructureStatus {
 			VPC:              v1alpha1.VPC{},
 			Subnets:          []v1alpha1.Subnet{},
 			NatIPs:           []v1alpha1.NatIP{},
-			DualStackEnabled: false, // Default value for DualStackEnabled
+			DualStackEnabled: !gardencorev1beta1.IsIPv4SingleStack(fctx.networking.IPFamilies), // Default value for DualStackEnabled
 		},
 	}
 
-	// Set DualStackEnabled based on the InfrastructureConfig
-	if fctx.config.Networks.DualStack != nil && fctx.config.Networks.DualStack.Enabled {
-		status.Networks.DualStackEnabled = true
-	}
 	if n := GetObject[*compute.Network](fctx.whiteboard, ObjectKeyVPC); n != nil {
 		status.Networks.VPC.Name = n.Name
 	}

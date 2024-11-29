@@ -280,10 +280,5 @@ func (t *TerraformReconciler) computeTerraformStatus(
 		return nil, nil, err
 	}
 
-	// Update the status with the dualStack configuration from the InfrastructureConfig
-	if config.Networks.DualStack != nil && config.Networks.DualStack.Enabled {
-		status.Networks.DualStackEnabled = true
-	}
-
 	return status, &runtime.RawExtension{Raw: stateByte}, nil
 }
