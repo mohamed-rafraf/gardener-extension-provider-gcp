@@ -37,7 +37,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	schemev1 "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"k8s.io/utils/pointer"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -203,12 +202,12 @@ var _ = Describe("Infrastructure tests", func() {
 		})
 
 		It("should successfully create and delete", func() {
-			providerConfig := newProviderConfig(nil, nil, false)
+			providerConfig := newProviderConfig(nil, nil)
 
 			namespace, err := generateNamespaceName()
 			Expect(err).NotTo(HaveOccurred())
 
-			err = runTest(ctx, c, namespace, providerConfig, project, computeService, iamService)
+			err = runTest(ctx, c, namespace, providerConfig, project, computeService, iamService, false)
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
@@ -246,7 +245,8 @@ var _ = Describe("Infrastructure tests", func() {
 				Name: networkName,
 				CloudRouter: &gcpv1alpha1.CloudRouter{
 					Name: cloudRouterName,
-				}}
+				},
+			}
 			var natIPNames []gcpv1alpha1.NatIPName
 			for _, ipAddressName := range ipAddressNames {
 				natIPNames = append(natIPNames, gcpv1alpha1.NatIPName{Name: ipAddressName})
@@ -257,9 +257,9 @@ var _ = Describe("Infrastructure tests", func() {
 				EnableDynamicPortAllocation: true,
 				NatIPNames:                  natIPNames,
 			}
-			providerConfig := newProviderConfig(vpc, cloudNAT, false)
+			providerConfig := newProviderConfig(vpc, cloudNAT)
 
-			err = runTest(ctx, c, namespace, providerConfig, project, computeService, iamService)
+			err = runTest(ctx, c, namespace, providerConfig, project, computeService, iamService, false)
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
@@ -270,7 +270,7 @@ var _ = Describe("Infrastructure tests", func() {
 				if *reconciler != reconcilerUseFlow {
 					Skip("test is not working for terraform because the state is not exactly empty")
 				}
-				providerConfig := newProviderConfig(nil, nil, false)
+				providerConfig := newProviderConfig(nil, nil)
 				var (
 					namespace *corev1.Namespace
 					cluster   *extensionsv1alpha1.Cluster
@@ -362,19 +362,18 @@ var _ = Describe("Infrastructure tests", func() {
 
 	Context("with dualstack enabled", func() {
 		It("should create VPC and subnets with dualstack enabled", func() {
-			providerConfig := newProviderConfig(nil, nil, true)
+			providerConfig := newProviderConfig(nil, nil)
 
 			namespace, err := generateNamespaceName()
 			Expect(err).NotTo(HaveOccurred())
 
-			err = runTest(ctx, c, namespace, providerConfig, project, computeService, iamService)
+			err = runTest(ctx, c, namespace, providerConfig, project, computeService, iamService, true)
 			Expect(err).NotTo(HaveOccurred())
 
 			// Here you would add assertions to check that IPv6 ranges were set up correctly
 			verifyDualStackSetup(ctx, project, computeService, namespace)
 		})
 	})
-
 })
 
 func runTest(
@@ -385,6 +384,7 @@ func runTest(
 	project string,
 	computeService *computev1.Service,
 	iamService *iamv1.Service,
+	dualStack bool,
 ) error {
 	var (
 		namespace     *corev1.Namespace
@@ -430,6 +430,15 @@ func runTest(
 	}
 
 	By("create cluster")
+
+	ipFamilies := []gardencorev1beta1.IPFamily{
+		gardencorev1beta1.IPFamilyIPv4,
+	}
+
+	if dualStack {
+		ipFamilies = append(ipFamilies, gardencorev1beta1.IPFamilyIPv6)
+	}
+
 	shoot := &gardencorev1beta1.Shoot{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Shoot",
@@ -437,7 +446,8 @@ func runTest(
 		},
 		Spec: gardencorev1beta1.ShootSpec{
 			Networking: &gardencorev1beta1.Networking{
-				Pods: ptr.To(podCIDR),
+				Pods:       ptr.To(podCIDR),
+				IPFamilies: ipFamilies,
 			},
 		},
 	}
@@ -511,7 +521,7 @@ func runTest(
 	}
 
 	By("verify infrastructure creation")
-	verifyCreation(ctx, project, computeService, iamService, infra, providerConfig)
+	verifyCreation(ctx, project, computeService, iamService, infra, providerConfig, dualStack)
 
 	if *reconciler == reconcilerMigrateTF {
 		By("verifying terraform migration")
@@ -536,7 +546,7 @@ func runTest(
 		}
 
 		By("verify infrastructure creation after migration")
-		verifyCreation(ctx, project, computeService, iamService, infra, providerConfig)
+		verifyCreation(ctx, project, computeService, iamService, infra, providerConfig, dualStack)
 	}
 
 	return err
@@ -547,10 +557,9 @@ func verifyDualStackSetup(ctx context.Context, project string, computeService *c
 	subnetNodes, err := computeService.Subnetworks.Get(project, *region, namespace+"-nodes").Context(ctx).Do()
 	Expect(err).NotTo(HaveOccurred())
 	Expect(subnetNodes.Ipv6CidrRange).To(Not(BeEmpty()), "Expected IPv6 CIDR to be set for nodes subnet")
-
 }
 
-func newProviderConfig(vpc *gcpv1alpha1.VPC, cloudNAT *gcpv1alpha1.CloudNAT, dualStackEnabled bool) *gcpv1alpha1.InfrastructureConfig {
+func newProviderConfig(vpc *gcpv1alpha1.VPC, cloudNAT *gcpv1alpha1.CloudNAT) *gcpv1alpha1.InfrastructureConfig {
 	return &gcpv1alpha1.InfrastructureConfig{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: gcpv1alpha1.SchemeGroupVersion.String(),
@@ -565,9 +574,6 @@ func newProviderConfig(vpc *gcpv1alpha1.VPC, cloudNAT *gcpv1alpha1.CloudNAT, dua
 				AggregationInterval: ptr.To("INTERVAL_5_SEC"),
 				FlowSampling:        ptr.To[float32](0.2),
 				Metadata:            ptr.To("INCLUDE_ALL_METADATA"),
-			},
-			DualStack: &gcpv1alpha1.DualStack{
-				Enabled: dualStackEnabled,
 			},
 		},
 	}
@@ -760,6 +766,7 @@ func verifyCreation(
 	iamService *iamv1.Service,
 	infra *extensionsv1alpha1.Infrastructure,
 	providerConfig *gcpv1alpha1.InfrastructureConfig,
+	dualStack bool,
 ) {
 	// service account
 	if !features.ExtensionFeatureGate.Enabled(features.DisableGardenerServiceAccountCreation) {
@@ -787,7 +794,7 @@ func verifyCreation(
 	Expect(subnetNodes.LogConfig.FlowSampling).To(Equal(float64(0.2)))
 	Expect(subnetNodes.LogConfig.Metadata).To(Equal("INCLUDE_ALL_METADATA"))
 
-	if providerConfig.Networks.DualStack.Enabled {
+	if dualStack {
 		// Ensure dual-stack subnets are created
 		Expect(err).NotTo(HaveOccurred())
 		Expect(subnetNodes.Ipv6CidrRange).To(Not(BeEmpty()), "Expected IPv6 CIDR range for dualstack setup")
@@ -798,7 +805,7 @@ func verifyCreation(
 	Expect(subnetInternal.Network).To(Equal(network.SelfLink))
 	Expect(subnetInternal.IpCidrRange).To(Equal(internalSubnetCIDR))
 
-	if providerConfig.Networks.DualStack.Enabled {
+	if dualStack {
 		// Ensure dual-stack subnets are created
 		Expect(err).NotTo(HaveOccurred())
 		Expect(subnetInternal.Ipv6CidrRange).To(Not(BeEmpty()), "Expected IPv6 CIDR range for dualstack setup")
@@ -837,7 +844,7 @@ func verifyCreation(
 		Expect(routerNAT.NatIps).To(HaveLen(len(providerConfig.Networks.CloudNAT.NatIPNames)))
 
 		// ip addresses
-		var ipAddresses = make(map[string]bool)
+		ipAddresses := make(map[string]bool)
 		for _, natIPName := range providerConfig.Networks.CloudNAT.NatIPNames {
 			address, err := computeService.Addresses.Get(project, *region, natIPName.Name).Context(ctx).Do()
 			Expect(err).NotTo(HaveOccurred())
@@ -962,7 +969,7 @@ func newCluster(name string) (*extensionsv1alpha1.Cluster, error) {
 		},
 		Spec: gardencorev1beta1.ShootSpec{
 			Networking: &gardencorev1beta1.Networking{
-				Pods: pointer.String(podCIDR),
+				Pods: ptr.To(podCIDR),
 			},
 		},
 	}

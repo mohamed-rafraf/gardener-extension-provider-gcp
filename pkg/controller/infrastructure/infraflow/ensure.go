@@ -11,6 +11,7 @@ import (
 	"github.com/gardener/gardener-extension-provider-gcp/pkg/controller/infrastructure/infraflow/shared"
 	"github.com/gardener/gardener-extension-provider-gcp/pkg/gcp/client"
 	"github.com/gardener/gardener-extension-provider-gcp/pkg/internal/infrastructure"
+	gardencorev1beta1 "github.com/gardener/gardener/pkg/apis/core/v1beta1"
 )
 
 func (fctx *FlowContext) ensureServiceAccount(ctx context.Context) error {
@@ -135,7 +136,7 @@ func (fctx *FlowContext) ensureNodesSubnet(ctx context.Context) error {
 		cidr,
 		vpc.SelfLink,
 		fctx.config.Networks.FlowLogs,
-		fctx.config.Networks.DualStack,
+		!gardencorev1beta1.IsIPv4SingleStack(fctx.networking.IPFamilies),
 		fctx.networking.Pods,
 	)
 
@@ -185,7 +186,7 @@ func (fctx *FlowContext) ensureInternalSubnet(ctx context.Context) error {
 		*fctx.config.Networks.Internal,
 		vpc.SelfLink,
 		nil,
-		fctx.config.Networks.DualStack,
+		!gardencorev1beta1.IsIPv4SingleStack(fctx.networking.IPFamilies),
 		nil,
 	)
 	if subnet == nil {
@@ -226,7 +227,7 @@ func (fctx *FlowContext) ensureServicesSubnet(ctx context.Context) error {
 		*fctx.networking.Services,
 		vpc.SelfLink,
 		nil,
-		fctx.config.Networks.DualStack,
+		!gardencorev1beta1.IsIPv4SingleStack(fctx.networking.IPFamilies),
 		nil,
 	)
 	if subnet == nil {

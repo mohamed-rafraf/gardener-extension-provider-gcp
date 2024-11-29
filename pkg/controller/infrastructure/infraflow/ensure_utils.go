@@ -2,8 +2,6 @@ package infraflow
 
 import (
 	"fmt"
-	"math/big"
-	"net"
 
 	"google.golang.org/api/compute/v1"
 
@@ -109,7 +107,7 @@ func targetNetwork(name string) *compute.Network {
 	}
 }
 
-func targetSubnetState(name, description, cidr, networkName string, flowLogs *gcp.FlowLogs, dualStack *gcp.DualStack, secondaryRange *string) *compute.Subnetwork {
+func targetSubnetState(name, description, cidr, networkName string, flowLogs *gcp.FlowLogs, dualStack bool, secondaryRange *string) *compute.Subnetwork {
 	subnet := &compute.Subnetwork{
 		Description:           description,
 		PrivateIpGoogleAccess: false,
@@ -120,7 +118,7 @@ func targetSubnetState(name, description, cidr, networkName string, flowLogs *gc
 		LogConfig:             nil,
 	}
 
-	if dualStack != nil && dualStack.Enabled {
+	if dualStack {
 		subnet.Ipv6AccessType = "EXTERNAL"
 		subnet.StackType = "IPV4_IPV6"
 	}
@@ -242,8 +240,8 @@ func targetNATState(name, subnetURL string, natConfig *gcp.CloudNAT, natIps []*c
 }
 
 const (
-	ippritocolICMPv4 = "icmp"
-	ippritocolICMPv6 = "58" // we have use the number as GCP doesn't recognize any variants of the name for ICMPv6
+	ipProtocolICMPv4 = "icmp"
+	ipProtocolICMPv6 = "58" // we have use the number as GCP doesn't recognize any variants of the name for ICMPv6
 )
 
 func firewallRuleAllowInternal(name, network string, cidrs []*string) *compute.Firewall {
@@ -254,7 +252,7 @@ func firewallRuleAllowInternal(name, network string, cidrs []*string) *compute.F
 		Priority:  1000,
 		Allowed: []*compute.FirewallAllowed{
 			{
-				IPProtocol: ippritocolICMPv4,
+				IPProtocol: ipProtocolICMPv4,
 			},
 			{
 				IPProtocol: "ipip",
@@ -288,7 +286,7 @@ func firewallRuleAllowInternalIPv6(name, network string, cidrs []*string) *compu
 		Priority:  1000,
 		Allowed: []*compute.FirewallAllowed{
 			{
-				IPProtocol: ippritocolICMPv6,
+				IPProtocol: ipProtocolICMPv6,
 			},
 			{
 				IPProtocol: "ipip",
@@ -360,16 +358,4 @@ func isUserRouter(config *gcp.InfrastructureConfig) bool {
 
 func isUserVPC(config *gcp.InfrastructureConfig) bool {
 	return config.Networks.VPC != nil && len(config.Networks.VPC.Name) > 0
-}
-
-// Helper function to convert IP to big.Int
-func ipToBigInt(ip net.IP) *big.Int {
-	i := new(big.Int)
-	i.SetBytes(ip)
-	return i
-}
-
-// Helper function to convert big.Int to IP
-func bigIntToIP(i *big.Int) net.IP {
-	return net.IP(i.Bytes())
 }
