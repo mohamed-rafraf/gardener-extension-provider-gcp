@@ -16,6 +16,7 @@ import (
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/gardener/gardener-extension-provider-gcp/pkg/gcp"
 )
@@ -96,20 +97,6 @@ type ComputeClient interface {
 type computeClient struct {
 	service   *compute.Service
 	projectID string
-}
-
-// RetryableIPv6CIDRError is a custom error type.
-type RetryableIPv6CIDRError struct{}
-
-// Error prints the error message of the RetryableIPv6CIDRError error.
-func (e *RetryableIPv6CIDRError) Error() string {
-	return "no ipv6 CIDR assigned"
-}
-
-// RetryableIPv6CIDRError returns true if the error indicates that getting the IPv6 CIDR can be retried.
-func IsRetryableIPv6CIDRError(err error) bool {
-	_, ok := err.(*RetryableIPv6CIDRError)
-	return ok
 }
 
 // NewComputeClient returns a client for Compute API. The client follows the following conventions:
@@ -556,38 +543,20 @@ func (c *computeClient) GetRegion(ctx context.Context, region string) (*compute.
 
 // WaitForIPv6Cidr waits for the ipv6 cidr block association
 func (c *computeClient) WaitForIPv6Cidr(ctx context.Context, region, subnetID string) (string, error) {
-	maxRetries := 30
-	waitInterval := 10 * time.Second
-	for i := 0; i < maxRetries; i++ {
-		select {
-		case <-ctx.Done():
-			return "", ctx.Err()
-		case <-time.After(waitInterval):
-			ipv6CidrBlock, err := c.GetIPv6CidrForSubnet(ctx, region, subnetID)
-			if err == nil {
-				return ipv6CidrBlock, nil
-			}
-			if !IsRetryableIPv6CIDRError(err) {
-				return "", err
-			}
+	var ipv6CidrBlock string
+
+	waiterr := wait.PollUntilContextTimeout(ctx, 2*time.Second, 30*time.Second, false, func(ctx context.Context) (bool, error) {
+		subnet, err := c.GetSubnet(ctx, region, subnetID)
+		if err != nil {
+			return true, err
 		}
+
+		ipv6CidrBlock = subnet.ExternalIpv6Prefix
+		return subnet.ExternalIpv6Prefix != "", nil
+	})
+	if waiterr != nil {
+		return "", fmt.Errorf("no IPv6 CIDR block was assigned to subnet %q: %v", subnetID, waiterr)
 	}
 
-	return "", fmt.Errorf("no IPv6 CIDR block was assigned to subnet ID %q", subnetID)
-}
-
-// GetIPv6CidrForSubnet retrieves the IPv6 CIDR range for a given GCP subnet.
-func (c *computeClient) GetIPv6CidrForSubnet(ctx context.Context, region, subnetID string) (string, error) {
-	// Retrieve the subnet information using the provided `region` and `subnetID`
-	subnet, err := c.GetSubnet(ctx, region, subnetID)
-	if err != nil {
-		return "", fmt.Errorf("error retrieving subnet: %v", err)
-	}
-
-	// Check for the IPv6 CIDR range in the subnet's information
-	if subnet.ExternalIpv6Prefix == "" {
-		return "", &RetryableIPv6CIDRError{}
-	}
-
-	return subnet.ExternalIpv6Prefix, nil
+	return ipv6CidrBlock, nil
 }
