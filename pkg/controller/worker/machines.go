@@ -95,6 +95,14 @@ func (w *workerDelegate) GenerateMachineDeployments(ctx context.Context) (worker
 	return w.machineDeployments, nil
 }
 
+func formatNodeCIDRMask(val *int32, defaultVal int) string {
+	if val != nil && *val != 0 {
+		return fmt.Sprintf("/%d", *val)
+	}
+
+	return fmt.Sprintf("/%d", defaultVal)
+}
+
 func (w *workerDelegate) generateMachineConfig(ctx context.Context) error {
 	var (
 		machineDeployments = worker.MachineDeployments{}
@@ -183,9 +191,10 @@ func (w *workerDelegate) generateMachineConfig(ctx context.Context) error {
 
 		for zoneIndex, zone := range pool.Zones {
 			zoneIdx := int32(zoneIndex) // #nosec: G115 - We check if pool zones exceeds max_int32.
-			ipCidrRange := "/24"
-			if kcc := w.cluster.Shoot.Spec.Kubernetes.KubeControllerManager; kcc != nil && kcc.NodeCIDRMaskSize != nil {
-				ipCidrRange = fmt.Sprintf("%d", *kcc.NodeCIDRMaskSize)
+			ipCidrRange := formatNodeCIDRMask(nil, 24)
+
+			if kcc := w.cluster.Shoot.Spec.Kubernetes.KubeControllerManager; kcc != nil {
+				ipCidrRange = formatNodeCIDRMask(kcc.NodeCIDRMaskSize, 24)
 			}
 
 			machineClassSpec := map[string]interface{}{
