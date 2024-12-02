@@ -51,6 +51,7 @@ import (
 	gcpinstall "github.com/gardener/gardener-extension-provider-gcp/pkg/apis/gcp/install"
 	gcpv1alpha1 "github.com/gardener/gardener-extension-provider-gcp/pkg/apis/gcp/v1alpha1"
 	"github.com/gardener/gardener-extension-provider-gcp/pkg/controller/infrastructure"
+	"github.com/gardener/gardener-extension-provider-gcp/pkg/controller/infrastructure/infraflow/shared"
 	"github.com/gardener/gardener-extension-provider-gcp/pkg/features"
 	"github.com/gardener/gardener-extension-provider-gcp/pkg/gcp"
 	gcpclient "github.com/gardener/gardener-extension-provider-gcp/pkg/gcp/client"
@@ -370,7 +371,6 @@ var _ = Describe("Infrastructure tests", func() {
 			err = runTest(ctx, c, namespace, providerConfig, project, computeService, iamService, true)
 			Expect(err).NotTo(HaveOccurred())
 
-			// Here you would add assertions to check that IPv6 ranges were set up correctly
 			verifyDualStackSetup(ctx, project, computeService, namespace)
 		})
 	})
@@ -552,11 +552,31 @@ func runTest(
 	return err
 }
 
+// verify that the subnets have IPv6 CIDR ranges, firewalls allow IPv6 traffic, etc.
 func verifyDualStackSetup(ctx context.Context, project string, computeService *computev1.Service, namespace string) {
-	// Verify that the subnets have IPv6 CIDR ranges, firewalls allow IPv6 traffic, etc.
 	subnetNodes, err := computeService.Subnetworks.Get(project, *region, namespace+"-nodes").Context(ctx).Do()
 	Expect(err).NotTo(HaveOccurred())
-	Expect(subnetNodes.Ipv6CidrRange).To(Not(BeEmpty()), "Expected IPv6 CIDR to be set for nodes subnet")
+	Expect(subnetNodes.Ipv6CidrRange).ToNot(BeEmpty(), "Expected IPv6 CIDR to be set for nodes subnet")
+
+	subnetServices, err := computeService.Subnetworks.Get(project, *region, namespace+"-services").Context(ctx).Do()
+	Expect(err).NotTo(HaveOccurred())
+	Expect(subnetServices.Ipv6CidrRange).ToNot(BeEmpty(), "Expected IPv6 CIDR to be set for services subnet")
+
+	fwRules, err := computeService.Firewalls.List(project).Context(ctx).Do()
+	Expect(err).NotTo(HaveOccurred())
+
+	firewallRules := map[string]bool{}
+	for _, fw := range fwRules.Items {
+		firewallRules[fw.Name] = true
+	}
+
+	Expect(
+		firewallRules[shared.FirewallRuleAllowHealthChecksNameIPv6(namespace)],
+	).ToNot(BeFalse(), "Missing firewall rule to allow IPv6 health check")
+
+	Expect(
+		firewallRules[shared.FirewallRuleAllowInternalNameIPv6(namespace)],
+	).ToNot(BeFalse(), "Missing firewall rule to allow IPv6 internal access")
 }
 
 func newProviderConfig(vpc *gcpv1alpha1.VPC, cloudNAT *gcpv1alpha1.CloudNAT) *gcpv1alpha1.InfrastructureConfig {
