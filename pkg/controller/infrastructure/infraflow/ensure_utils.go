@@ -76,26 +76,6 @@ func (fctx *FlowContext) cloudNatNameFromConfig() string {
 	return fmt.Sprintf("%s-cloud-nat", fctx.clusterName)
 }
 
-func firewallRuleAllowInternalName(base string) string {
-	return fmt.Sprintf("%s-allow-internal-access", base)
-}
-
-func firewallRuleAllowInternalNameIPv6(base string) string {
-	return fmt.Sprintf("%s-allow-internal-access-ipv6", base)
-}
-
-func firewallRuleAllowExternalName(base string) string {
-	return fmt.Sprintf("%s-allow-external-access", base)
-}
-
-func firewallRuleAllowHealthChecksName(base string) string {
-	return fmt.Sprintf("%s-allow-health-checks", base)
-}
-
-func firewallRuleAllowHealthChecksNameIPv6(base string) string {
-	return fmt.Sprintf("%s-allow-health-checks-ipv6", base)
-}
-
 func targetNetwork(name string) *compute.Network {
 	return &compute.Network{
 		Name:                  name,
