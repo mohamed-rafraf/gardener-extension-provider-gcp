@@ -33,7 +33,6 @@ spec:
 {{- end }}
     spec:
       automountServiceAccountToken: false
-      serviceAccountName: glbc
       containers:
         - name: glbc
           image: {{ index .Values.images "ingress-gce" }}
