@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
+	"slices"
 	"strings"
 
 	"github.com/gardener/gardener/extensions/pkg/controller"
@@ -300,7 +302,7 @@ func PatchProviderStatusAndState(
 				infra.Status.Networking.Pods = append(infra.Status.Networking.Pods, *networking.Pods)
 			}
 			if networking.Services != nil {
-				infra.Status.Networking.Services = append(infra.Status.Networking.Services, *networking.Services)
+				infra.Status.Networking.Services = append(infra.Status.Networking.Services, (*networking.Services))
 			}
 		}
 
@@ -311,7 +313,7 @@ func PatchProviderStatusAndState(
 		}
 
 		if servicesSubnetIPv6CIDR != nil {
-			infra.Status.Networking.Services = append(infra.Status.Networking.Services, *servicesSubnetIPv6CIDR)
+			infra.Status.Networking.Services = normalizeServicesIPRanges(append(infra.Status.Networking.Services, *servicesSubnetIPv6CIDR))
 		}
 	}
 
@@ -326,4 +328,26 @@ func PatchProviderStatusAndState(
 	}
 
 	return runtimeClient.Status().Patch(ctx, infra, patch)
+}
+
+// normalizeServicesIPRanges rewrites found IPv6 subnet masks to /108
+func normalizeServicesIPRanges(netRanges []string) []string {
+	ranges := slices.Clone(netRanges)
+
+	for i, ipnet := range ranges {
+		_, nt, err := net.ParseCIDR(ipnet)
+		if err != nil {
+			continue
+		}
+
+		// Check if the IP is IPv6
+		if len(nt.IP) == net.IPv6len {
+			// Normalize the subnet mask to /108
+			nt.Mask = net.CIDRMask(108, net.IPv6len*8)
+			ranges[i] = nt.String()
+		}
+	}
+
+	// Return the modified slice
+	return ranges
 }
