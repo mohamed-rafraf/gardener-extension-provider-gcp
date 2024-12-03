@@ -587,6 +587,7 @@ func getNetworkNames(
 	if networkName == "" {
 		networkName = cp.Namespace
 	}
+
 	subnetPurpose := apisgcp.PurposeInternal
 	if dualstack {
 		subnetPurpose = apisgcp.PurposeNodes
