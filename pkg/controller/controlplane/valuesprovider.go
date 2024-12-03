@@ -287,7 +287,7 @@ type valuesProvider struct {
 func (vp *valuesProvider) GetConfigChartValues(
 	ctx context.Context,
 	cp *extensionsv1alpha1.ControlPlane,
-	_ *extensionscontroller.Cluster,
+	cluster *extensionscontroller.Cluster,
 ) (map[string]interface{}, error) {
 	// Decode providerConfig
 	cpConfig := &apisgcp.ControlPlaneConfig{}
@@ -310,7 +310,7 @@ func (vp *valuesProvider) GetConfigChartValues(
 	}
 
 	// Get config chart values
-	return getConfigChartValues(cpConfig, infraStatus, cp, serviceAccount)
+	return getConfigChartValues(cpConfig, infraStatus, cp, serviceAccount, isDualstackEnabled(cluster.Shoot.Spec.Networking))
 }
 
 // GetControlPlaneChartValues returns the values for the control plane chart applied by the generic actuator.
@@ -371,9 +371,10 @@ func getConfigChartValues(
 	infraStatus *apisgcp.InfrastructureStatus,
 	cp *extensionsv1alpha1.ControlPlane,
 	serviceAccount *gcp.ServiceAccount,
+	dualStack bool,
 ) (map[string]interface{}, error) {
 	// Determine network names
-	networkName, subNetworkName := getNetworkNames(infraStatus, cp)
+	networkName, subNetworkName := getNetworkNames(infraStatus, cp, dualStack)
 
 	// Collect config chart values
 	return map[string]interface{}{
@@ -610,14 +611,20 @@ func (vp *valuesProvider) GetStorageClassesChartValues(
 func getNetworkNames(
 	infraStatus *apisgcp.InfrastructureStatus,
 	cp *extensionsv1alpha1.ControlPlane,
+	dualstack bool,
 ) (string, string) {
 	networkName := infraStatus.Networks.VPC.Name
 	if networkName == "" {
 		networkName = cp.Namespace
 	}
 
+	subnetPurpose := apisgcp.PurposeInternal
+	if dualstack {
+		subnetPurpose = apisgcp.PurposeNodes
+	}
+
 	subNetworkName := ""
-	subnet, _ := apihelper.FindSubnetForPurpose(infraStatus.Networks.Subnets, apisgcp.PurposeInternal)
+	subnet, _ := apihelper.FindSubnetForPurpose(infraStatus.Networks.Subnets, subnetPurpose)
 	if subnet != nil {
 		subNetworkName = subnet.Name
 	}
