@@ -158,7 +158,7 @@ var _ = Describe("ValuesProvider", func() {
 					},
 					Networking: &gardencorev1beta1.Networking{
 						IPFamilies: []gardencorev1beta1.IPFamily{
-							"Ipv4",
+							gardencorev1beta1.IPFamilyIPv4,
 						},
 						Pods:     &cidr,
 						Services: &cidr,
@@ -249,7 +249,7 @@ var _ = Describe("ValuesProvider", func() {
 				gcp.CloudControllerManagerName: utils.MergeMaps(ccmChartValues, map[string]interface{}{
 					"kubernetesVersion": cluster.Shoot.Spec.Kubernetes.Version,
 					"gep19Monitoring":   false,
-					"allocatorType":     "CloudAllocator",
+					"allocatorType":     "RangeAllocator",
 				}),
 				gcp.CSIControllerName: utils.MergeMaps(enabledTrue, map[string]interface{}{
 					"replicas":  1,
@@ -287,8 +287,8 @@ var _ = Describe("ValuesProvider", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(values[gcp.CloudControllerManagerName]).To(Equal(utils.MergeMaps(ccmChartValues, map[string]interface{}{
 				"kubernetesVersion":    cluster.Shoot.Spec.Kubernetes.Version,
-				"configureCloudRoutes": false,
-				"allocatorType":        "CloudAllocator",
+				"configureCloudRoutes": true,
+				"allocatorType":        "RangeAllocator",
 				"gep19Monitoring":      false,
 			})))
 		})
