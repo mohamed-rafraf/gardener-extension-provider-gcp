@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
+	"net"
+	"slices"
 	"strings"
 
 	"github.com/gardener/gardener/extensions/pkg/controller"
@@ -15,6 +18,7 @@ import (
 	"google.golang.org/api/compute/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -311,9 +315,17 @@ func PatchProviderStatusAndState(
 		}
 
 		if servicesSubnetIPv6CIDR != nil {
-			infra.Status.Networking.Services = append(infra.Status.Networking.Services, *servicesSubnetIPv6CIDR)
+			infra.Status.Networking.Services = append(infra.Status.Networking.Services, getFirstSubnet(*servicesSubnetIPv6CIDR, 108))
 		}
 	}
+
+	// transform []string -> map[string]struct{}, make keys unique
+	// collect them back to []string
+	// sort collection
+	uniqServices := sets.New(infra.Status.Networking.Services...)
+	servicesStatus := slices.Collect(maps.Keys(uniqServices))
+	slices.Sort(servicesStatus)
+	infra.Status.Networking.Services = servicesStatus
 
 	if state != nil {
 		infra.Status.State = state
@@ -326,4 +338,16 @@ func PatchProviderStatusAndState(
 	}
 
 	return runtimeClient.Status().Patch(ctx, infra, patch)
+}
+
+// getFirstSubnet extracts first /bits subnet from ipnet
+func getFirstSubnet(cidr string, ones int) string {
+	_, ipnet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return cidr
+	}
+
+	ipnet.Mask = net.CIDRMask(ones, len(ipnet.IP)*8)
+
+	return ipnet.String()
 }
