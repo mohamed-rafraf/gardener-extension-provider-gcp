@@ -219,48 +219,8 @@ var _ = Describe("Infrastructure tests", func() {
 		})
 
 		It("should successfully create and delete", func() {
-			namespace, err := generateNamespaceName()
-			Expect(err).NotTo(HaveOccurred())
-
-			networkName := namespace
-			cloudRouterName := networkName + "-cloud-router"
-			ipAddressNames := []string{networkName + "-manual-nat1", networkName + "-manual-nat2"}
-
-			var cleanupHandle framework.CleanupActionHandle
-			cleanupHandle = framework.AddCleanupAction(func() {
-				err := teardownNetwork(ctx, log, project, computeService, networkName, cloudRouterName)
-				Expect(err).NotTo(HaveOccurred())
-				err = teardownIPAddresses(ctx, log, project, computeService, ipAddressNames)
-				Expect(err).NotTo(HaveOccurred())
-
-				framework.RemoveCleanupAction(cleanupHandle)
-			})
-
-			err = prepareNewNetwork(ctx, log, project, computeService, networkName, cloudRouterName)
-			Expect(err).NotTo(HaveOccurred())
-
-			err = prepareNewIPAddresses(ctx, log, project, computeService, ipAddressNames)
-			Expect(err).NotTo(HaveOccurred())
-
-			vpc := &gcpv1alpha1.VPC{
-				Name: networkName,
-				CloudRouter: &gcpv1alpha1.CloudRouter{
-					Name: cloudRouterName,
-				},
-			}
-			var natIPNames []gcpv1alpha1.NatIPName
-			for _, ipAddressName := range ipAddressNames {
-				natIPNames = append(natIPNames, gcpv1alpha1.NatIPName{Name: ipAddressName})
-			}
-			cloudNAT := &gcpv1alpha1.CloudNAT{
-				MinPortsPerVM:               ptr.To[int32](1024),
-				MaxPortsPerVM:               ptr.To[int32](2048),
-				EnableDynamicPortAllocation: true,
-				NatIPNames:                  natIPNames,
-			}
-			providerConfig := newProviderConfig(vpc, cloudNAT)
-
-			err = runTest(ctx, c, namespace, providerConfig, project, computeService, iamService, false)
+			namespace, providerConfig := newProviderConfigForExistingVPC()
+			err := runTest(ctx, c, namespace, providerConfig, project, computeService, iamService, false)
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
@@ -362,6 +322,10 @@ var _ = Describe("Infrastructure tests", func() {
 	})
 
 	Context("with dualstack enabled", func() {
+		AfterEach(func() {
+			framework.RunCleanupActions()
+		})
+
 		It("should create VPC and subnets with dualstack enabled", func() {
 			providerConfig := newProviderConfig(nil, nil)
 
@@ -371,6 +335,13 @@ var _ = Describe("Infrastructure tests", func() {
 			err = runTest(ctx, c, namespace, providerConfig, project, computeService, iamService, true)
 			Expect(err).NotTo(HaveOccurred())
 
+			verifyDualStackSetup(ctx, project, computeService, namespace)
+		})
+
+		It("dualstack enabled with infrastructure that uses existing vpc", func() {
+			namespace, providerConfig := newProviderConfigForExistingVPC()
+			err := runTest(ctx, c, namespace, providerConfig, project, computeService, iamService, true)
+			Expect(err).NotTo(HaveOccurred())
 			verifyDualStackSetup(ctx, project, computeService, namespace)
 		})
 	})
@@ -1009,4 +980,47 @@ func newCluster(name string) (*extensionsv1alpha1.Cluster, error) {
 		},
 	}
 	return cluster, nil
+}
+
+func newProviderConfigForExistingVPC() (string, *gcpv1alpha1.InfrastructureConfig) {
+	namespace, err := generateNamespaceName()
+	Expect(err).NotTo(HaveOccurred())
+
+	networkName := namespace
+	cloudRouterName := networkName + "-cloud-router"
+	ipAddressNames := []string{networkName + "-manual-nat1", networkName + "-manual-nat2"}
+
+	var cleanupHandle framework.CleanupActionHandle
+	cleanupHandle = framework.AddCleanupAction(func() {
+		err := teardownNetwork(ctx, log, project, computeService, networkName, cloudRouterName)
+		Expect(err).NotTo(HaveOccurred())
+		err = teardownIPAddresses(ctx, log, project, computeService, ipAddressNames)
+		Expect(err).NotTo(HaveOccurred())
+
+		framework.RemoveCleanupAction(cleanupHandle)
+	})
+
+	err = prepareNewNetwork(ctx, log, project, computeService, networkName, cloudRouterName)
+	Expect(err).NotTo(HaveOccurred())
+
+	err = prepareNewIPAddresses(ctx, log, project, computeService, ipAddressNames)
+	Expect(err).NotTo(HaveOccurred())
+
+	vpc := &gcpv1alpha1.VPC{
+		Name: networkName,
+		CloudRouter: &gcpv1alpha1.CloudRouter{
+			Name: cloudRouterName,
+		},
+	}
+	var natIPNames []gcpv1alpha1.NatIPName
+	for _, ipAddressName := range ipAddressNames {
+		natIPNames = append(natIPNames, gcpv1alpha1.NatIPName{Name: ipAddressName})
+	}
+	cloudNAT := &gcpv1alpha1.CloudNAT{
+		MinPortsPerVM:               ptr.To[int32](1024),
+		MaxPortsPerVM:               ptr.To[int32](2048),
+		EnableDynamicPortAllocation: true,
+		NatIPNames:                  natIPNames,
+	}
+	return namespace, newProviderConfig(vpc, cloudNAT)
 }
