@@ -101,14 +101,14 @@ func targetSubnetState(name, description, cidr, networkName string, flowLogs *gc
 	if dualStack {
 		subnet.Ipv6AccessType = "EXTERNAL"
 		subnet.StackType = "IPV4_IPV6"
-	}
 
-	if secondaryRange != nil {
-		subnet.SecondaryIpRanges = []*compute.SubnetworkSecondaryRange{
-			{
-				IpCidrRange: *secondaryRange,
-				RangeName:   DefaultSecondarySubnetName,
-			},
+		if secondaryRange != nil {
+			subnet.SecondaryIpRanges = []*compute.SubnetworkSecondaryRange{
+				{
+					IpCidrRange: *secondaryRange,
+					RangeName:   DefaultSecondarySubnetName,
+				},
+			}
 		}
 	}
 
