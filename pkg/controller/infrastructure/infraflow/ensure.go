@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"strings"
 
+	gardencorev1beta1 "github.com/gardener/gardener/pkg/apis/core/v1beta1"
 	"google.golang.org/api/compute/v1"
 	"k8s.io/utils/ptr"
 
 	"github.com/gardener/gardener-extension-provider-gcp/pkg/controller/infrastructure/infraflow/shared"
 	"github.com/gardener/gardener-extension-provider-gcp/pkg/gcp/client"
 	"github.com/gardener/gardener-extension-provider-gcp/pkg/internal/infrastructure"
-	gardencorev1beta1 "github.com/gardener/gardener/pkg/apis/core/v1beta1"
 )
 
 func (fctx *FlowContext) ensureServiceAccount(ctx context.Context) error {
