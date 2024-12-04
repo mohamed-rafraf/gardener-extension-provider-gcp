@@ -49,7 +49,7 @@ const (
 	ObjectKeyNodeSubnet = "subnet-nodes"
 	// ObjectKeyInternalSubnet is the key to store the internal subnet object.
 	ObjectKeyInternalSubnet = "subnet-internal"
-	// ObjectKeyInternalSubnet is the key to store the internal subnet object.
+	// ObjectKeyServicesSubnet is the key to store the internal subnet object.
 	ObjectKeyServicesSubnet = "subnet-services"
 	// ObjectKeyRouter router is the key for the CloudRouter.
 	ObjectKeyRouter = "router"
@@ -272,6 +272,7 @@ func (fctx *FlowContext) loadWhiteBoard() {
 	fctx.whiteboard.Set(CreatedResourcesExistKey, "true")
 }
 
+// PatchProviderStatusAndState computes and persists the infrastructure state
 func PatchProviderStatusAndState(
 	ctx context.Context,
 	runtimeClient client.Client,
