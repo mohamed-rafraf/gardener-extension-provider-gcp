@@ -116,6 +116,16 @@ func (fctx *FlowContext) ensureIPv6CIDRs(ctx context.Context) error {
 	return nil
 }
 
+func (fctx *FlowContext) ensureKubernetesRoutesCleanup(ctx context.Context) error {
+	if err := fctx.ensureObjectKeys(ObjectKeyVPC); err != nil {
+		return err
+	}
+
+	vpc := GetObject[*compute.Network](fctx.whiteboard, ObjectKeyVPC)
+
+	return infrastructure.CleanupKubernetesRoutes(ctx, fctx.computeClient, vpc.Name, fctx.clusterName)
+}
+
 func (fctx *FlowContext) ensureNodesSubnet(ctx context.Context) error {
 	region := fctx.infra.Spec.Region
 
@@ -123,7 +133,6 @@ func (fctx *FlowContext) ensureNodesSubnet(ctx context.Context) error {
 		return err
 	}
 	vpc := GetObject[*compute.Network](fctx.whiteboard, ObjectKeyVPC)
-
 	subnetName := fctx.subnetNameFromConfig()
 	cidr := fctx.config.Networks.Workers
 	if len(cidr) == 0 {
