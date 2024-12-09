@@ -72,6 +72,7 @@ type FlowContext struct {
 	updater        gcpclient.Updater
 	serviceAccount *gcpinternal.ServiceAccount
 	clusterName    string
+	technicalID    string
 	runtimeClient  client.Client
 	networking     *v1beta1.Networking
 	whiteboard     shared.Whiteboard
@@ -126,6 +127,7 @@ func NewFlowContext(ctx context.Context, opts Opts) (*FlowContext, error) {
 		clusterName:    opts.Cluster.ObjectMeta.Name,
 		runtimeClient:  opts.Client,
 		podCIDR:        opts.Cluster.Shoot.Spec.Networking.Pods,
+		technicalID:    opts.Cluster.Shoot.Status.TechnicalID,
 		log:            opts.Log,
 		networking:     opts.Networking,
 		computeClient:  com,

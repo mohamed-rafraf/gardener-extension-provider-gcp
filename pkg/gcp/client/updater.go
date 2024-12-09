@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/go-logr/logr"
+	"github.com/google/go-cmp/cmp"
 	"golang.org/x/exp/slices"
 	"google.golang.org/api/compute/v1"
 )
@@ -74,6 +76,8 @@ func (u *updater) Subnet(ctx context.Context, region string, desired, current *c
 		return nil, fmt.Errorf("current subnet must be provided")
 	}
 
+	subnetName := current.Name
+
 	if current.IpCidrRange != desired.IpCidrRange {
 		u.log.Info("updating subnet with expanded CIDR", "Name", current.Name)
 		current, err = u.compute.ExpandSubnet(ctx, region, current.Name, desired.IpCidrRange)
@@ -83,43 +87,74 @@ func (u *updater) Subnet(ctx context.Context, region string, desired, current *c
 		}
 	}
 
-	// EnableFlowLogs can't be combined with updates to the LogConfig settings. Therefore always issue a separate update when it changes before making the rest of the changes
-	// if desired.EnableFlowLogs && desired.EnableFlowLogs != current.EnableFlowLogs {
-	if desired.EnableFlowLogs != current.EnableFlowLogs {
-		subnet := &compute.Subnetwork{
-			Fingerprint:     current.Fingerprint,
-			EnableFlowLogs:  desired.EnableFlowLogs,
-			ForceSendFields: []string{"EnableFlowLogs"},
+	// Only one field at a time can be modified in the request
+	// so we queue updates
+	conditions := []struct {
+		condition bool
+		subnet    *compute.Subnetwork
+	}{
+		{
+			condition: desired.EnableFlowLogs != current.EnableFlowLogs,
+			subnet: &compute.Subnetwork{
+				EnableFlowLogs:  desired.EnableFlowLogs,
+				ForceSendFields: []string{"EnableFlowLogs"},
+			},
+		},
+		{
+			condition: desired.StackType != current.StackType,
+			subnet: &compute.Subnetwork{
+				StackType:       desired.StackType,
+				Ipv6AccessType:  desired.Ipv6AccessType,
+				ForceSendFields: []string{"StackType", "Ipv6AccessType"},
+			},
+		},
+		{
+			condition: !cmp.Equal(desired.SecondaryIpRanges, current.SecondaryIpRanges),
+			subnet: &compute.Subnetwork{
+				SecondaryIpRanges: slices.Clone(desired.SecondaryIpRanges),
+				ForceSendFields:   []string{"SecondaryIpRanges"},
+			},
+		},
+		{
+			condition: desired.LogConfig != current.LogConfig,
+			subnet: func() *compute.Subnetwork {
+				sn := &compute.Subnetwork{
+					LogConfig:       current.LogConfig,
+					ForceSendFields: []string{"LogConfig"},
+				}
+				if current.LogConfig == nil {
+					sn.NullFields = []string{"LogConfig"}
+				}
+
+				return sn
+			}(),
+		},
+	}
+
+	for _, cond := range conditions {
+		if !cond.condition {
+			continue
 		}
 
-		u.log.Info("updating subnet FlowLogs", "Name", current.Name)
-		current, err = u.compute.PatchSubnet(ctx, region, current.Name, subnet)
+		cond.subnet.Fingerprint = current.Fingerprint
+		fields := strings.Join(cond.subnet.ForceSendFields, ",")
+		u.log.Info("updating subnet",
+			"Name", current.Name,
+			"Fields", fields,
+		)
+
+		current, err = u.compute.PatchSubnet(ctx, region, current.Name, cond.subnet)
 		if err != nil {
-			u.log.Error(err, "failed subnet FlowLogs update")
+			u.log.Error(err, "failed subnet update",
+				"Name", subnetName,
+				"Fields", fields,
+			)
+
 			return nil, err
 		}
 	}
 
-	modified := false
-	if desired.LogConfig != current.LogConfig {
-		modified = true
-		if desired.LogConfig == nil {
-			desired.NullFields = []string{"LogConfig"}
-		}
-	}
-
-	if desired.StackType != current.StackType {
-		modified = true
-	}
-
-	if !modified {
-		return current, nil
-	}
-
-	// We need to update fingerprint here too in case we performed a FlowLog update already
-	desired.Fingerprint = current.Fingerprint
-	u.log.Info("updating subnet", "Name", current.Name)
-	return u.compute.PatchSubnet(ctx, region, current.Name, desired)
+	return current, nil
 }
 
 func (u *updater) Router(ctx context.Context, region string, desired, current *compute.Router) (*compute.Router, error) {

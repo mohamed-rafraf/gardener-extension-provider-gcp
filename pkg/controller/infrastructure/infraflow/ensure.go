@@ -7,9 +7,15 @@ import (
 
 	gardencorev1beta1 "github.com/gardener/gardener/pkg/apis/core/v1beta1"
 	"google.golang.org/api/compute/v1"
+	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv1 "k8s.io/api/autoscaling/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/ptr"
+	ctclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/gardener/gardener-extension-provider-gcp/pkg/controller/infrastructure/infraflow/shared"
+	"github.com/gardener/gardener-extension-provider-gcp/pkg/gcp"
 	"github.com/gardener/gardener-extension-provider-gcp/pkg/gcp/client"
 	"github.com/gardener/gardener-extension-provider-gcp/pkg/internal/infrastructure"
 )
@@ -116,6 +122,54 @@ func (fctx *FlowContext) ensureIPv6CIDRs(ctx context.Context) error {
 	return nil
 }
 
+func (fctx *FlowContext) ensureKubernetesRoutesCleanup(ctx context.Context) error {
+	if err := fctx.ensureObjectKeys(ObjectKeyVPC); err != nil {
+		return err
+	}
+
+	vpc := GetObject[*compute.Network](fctx.whiteboard, ObjectKeyVPC)
+
+	cloudRoutes, err := infrastructure.ListKubernetesRoutes(ctx, fctx.computeClient, vpc.Name, fctx.clusterName)
+	if err != nil {
+		return err
+	}
+
+	if len(cloudRoutes) == 0 {
+		// we don't need to do anything
+		return nil
+	}
+
+	ccmDeploy := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Namespace: fctx.technicalID, Name: gcp.CloudControllerManagerName},
+	}
+	ccmScale := &autoscalingv1.Scale{}
+	scaleClient := fctx.runtimeClient.SubResource("scale")
+	if err := scaleClient.Get(ctx, ccmDeploy, ccmScale); err != nil {
+		return err
+	}
+
+	scaleCCMto := func(scale int32) error {
+		ccmScale.Spec.Replicas = scale
+		return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			return scaleClient.Update(ctx, ccmDeploy, ctclient.WithSubResourceBody(ccmScale))
+		})
+	}
+
+	originalScale := ccmScale.Spec.Replicas
+
+	// scale CCM to zero
+	if err = scaleCCMto(0); err != nil {
+		return err
+	}
+
+	if err = infrastructure.DeleteRoutes(ctx, fctx.computeClient, cloudRoutes); err != nil {
+		// scale CCM back to originalScale in case if there are errors from DeleteRoutes() call
+		_ = scaleCCMto(originalScale)
+	}
+
+	return err
+}
+
 func (fctx *FlowContext) ensureNodesSubnet(ctx context.Context) error {
 	region := fctx.infra.Spec.Region
 
@@ -123,7 +177,6 @@ func (fctx *FlowContext) ensureNodesSubnet(ctx context.Context) error {
 		return err
 	}
 	vpc := GetObject[*compute.Network](fctx.whiteboard, ObjectKeyVPC)
-
 	subnetName := fctx.subnetNameFromConfig()
 	cidr := fctx.config.Networks.Workers
 	if len(cidr) == 0 {
