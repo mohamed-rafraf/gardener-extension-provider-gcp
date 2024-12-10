@@ -47,6 +47,9 @@ const (
 	// ServiceAccountCredentialType is the type of the credentials contained in the serviceaccount.json file.
 	ServiceAccountCredentialType = "service_account"
 
+	// StackTypeLabelKey is the label key used to define the networking stack type
+	StackTypeLabelKey = "networking.gardener.cloud/stack-type"
+
 	// CloudControllerManagerName is a constant for the name of the CloudController deployed by the worker controller.
 	CloudControllerManagerName = "cloud-controller-manager"
 	// IngressGCEName is a constant for the name of the ingress-gce deployment in the seed.

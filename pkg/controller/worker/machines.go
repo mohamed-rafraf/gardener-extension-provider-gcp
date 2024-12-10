@@ -244,6 +244,12 @@ func (w *workerDelegate) generateMachineConfig(ctx context.Context) error {
 				gpuCount       int32
 			)
 
+			if pool.Annotations == nil {
+				pool.Annotations = make(map[string]string)
+			}
+
+			pool.Annotations["networking.gardener.cloud/stack-type"] = w.getStackType()
+
 			machineDeployments = append(machineDeployments, worker.MachineDeployment{
 				Name:                         deploymentName,
 				ClassName:                    className,
@@ -252,7 +258,7 @@ func (w *workerDelegate) generateMachineConfig(ctx context.Context) error {
 				Maximum:                      worker.DistributeOverZones(zoneIdx, pool.Maximum, zoneLen),
 				MaxSurge:                     worker.DistributePositiveIntOrPercent(zoneIdx, pool.MaxSurge, zoneLen, pool.Maximum),
 				MaxUnavailable:               worker.DistributePositiveIntOrPercent(zoneIdx, pool.MaxUnavailable, zoneLen, pool.Minimum),
-				Labels:                       addTopologyLabel(pool.Labels, zone),
+				Labels:                       addLabels(pool.Labels, zone, w.getStackType()),
 				Annotations:                  pool.Annotations,
 				Taints:                       pool.Taints,
 				MachineConfiguration:         genericworkeractuator.ReadMachineConfiguration(pool),
@@ -330,11 +336,11 @@ func (w *workerDelegate) generateWorkerPoolHash(pool v1alpha1.WorkerPool, worker
 		}
 	}
 
-	workerVolumes := slices.Clone(workerConfig.DataVolumes)
-	slices.SortFunc(workerVolumes, func(i, j apisgcp.DataVolume) int {
+	worker_volumes := slices.Clone(workerConfig.DataVolumes)
+	slices.SortFunc(worker_volumes, func(i, j apisgcp.DataVolume) int {
 		return strings.Compare(i.Name, j.Name)
 	})
-	for _, volume := range workerVolumes {
+	for _, volume := range worker_volumes {
 		additionalData = append(additionalData, volume.Name)
 		if sourceImage := volume.SourceImage; sourceImage != nil {
 			additionalData = append(additionalData, *sourceImage)
@@ -526,6 +532,11 @@ func sanitizeGcpLabelOrValue(label string, startWithCharacter bool) string {
 	return v
 }
 
-func addTopologyLabel(labels map[string]string, zone string) map[string]string {
-	return utils.MergeStringMaps(labels, map[string]string{gcp.CSIDiskDriverTopologyKey: zone})
+// addLabels merges additional labels into an existing map of labels for a machine deployment.
+// It adds the topology label for the zone and the stack type label to indicate the networking stack type.
+func addLabels(labels map[string]string, zone string, stackType string) map[string]string {
+	return utils.MergeStringMaps(labels, map[string]string{
+		gcp.CSIDiskDriverTopologyKey: zone,
+		gcp.StackTypeLabelKey:        stackType,
+	})
 }
