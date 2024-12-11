@@ -336,11 +336,11 @@ func (w *workerDelegate) generateWorkerPoolHash(pool v1alpha1.WorkerPool, worker
 		}
 	}
 
-	worker_volumes := slices.Clone(workerConfig.DataVolumes)
-	slices.SortFunc(worker_volumes, func(i, j apisgcp.DataVolume) int {
+	workerVolumes := slices.Clone(workerConfig.DataVolumes)
+	slices.SortFunc(workerVolumes, func(i, j apisgcp.DataVolume) int {
 		return strings.Compare(i.Name, j.Name)
 	})
-	for _, volume := range worker_volumes {
+	for _, volume := range workerVolumes {
 		additionalData = append(additionalData, volume.Name)
 		if sourceImage := volume.SourceImage; sourceImage != nil {
 			additionalData = append(additionalData, *sourceImage)
