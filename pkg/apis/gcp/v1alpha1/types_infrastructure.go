@@ -77,7 +77,7 @@ const (
 	PurposeNodes SubnetPurpose = "nodes"
 	// PurposeInternal is a SubnetPurpose for internal use.
 	PurposeInternal SubnetPurpose = "internal"
-	// PurposeServices is a SubnetPurpose for internal use.
+	// PurposeServices is a SubnetPurpose for services.
 	PurposeServices SubnetPurpose = "services"
 )
 

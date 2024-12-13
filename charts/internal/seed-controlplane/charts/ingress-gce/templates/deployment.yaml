@@ -3,8 +3,6 @@ kind: Deployment
 metadata:
   name: ingress-gce
   namespace: {{ .Release.Namespace }}
-  annotations:
-    scheduler.alpha.kubernetes.io/critical-pod: ''
   labels:
     app: kubernetes
     role: glbc
@@ -33,6 +31,7 @@ spec:
 {{- end }}
     spec:
       automountServiceAccountToken: false
+      priorityClassName: system-cluster-critical
       containers:
         - name: glbc
           image: {{ index .Values.images "ingress-gce" }}

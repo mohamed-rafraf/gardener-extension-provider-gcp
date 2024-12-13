@@ -97,8 +97,8 @@ func (fctx *FlowContext) ensureUserManagedVPC(ctx context.Context) error {
 }
 
 func (fctx *FlowContext) ensureIPv6CIDRs(ctx context.Context) error {
-	nodeSubnet := fctx.whiteboard.GetObject(ObjectKeyNodeSubnet).(*compute.Subnetwork)
-	if nodeSubnet == nil {
+	nodeSubnet, ok := fctx.whiteboard.GetObject(ObjectKeyNodeSubnet).(*compute.Subnetwork)
+	if !ok || nodeSubnet == nil {
 		return fmt.Errorf("failed to get the subnet for nodes")
 	}
 
@@ -108,8 +108,8 @@ func (fctx *FlowContext) ensureIPv6CIDRs(ctx context.Context) error {
 	}
 	fctx.whiteboard.Set(NodesSubnetIPv6CIDR, nodesIPv6Range)
 
-	srvSubnet := fctx.whiteboard.GetObject(ObjectKeyServicesSubnet).(*compute.Subnetwork)
-	if srvSubnet == nil {
+	srvSubnet, ok := fctx.whiteboard.GetObject(ObjectKeyServicesSubnet).(*compute.Subnetwork)
+	if !ok || srvSubnet == nil {
 		return fmt.Errorf("failed to get the subnet for services")
 	}
 
@@ -427,17 +427,17 @@ func (fctx *FlowContext) ensureFirewallRules(ctx context.Context) error {
 		firewallRuleAllowHealthChecks(shared.FirewallRuleAllowHealthChecksName(fctx.clusterName), vpc.SelfLink, healthCheckSourceRangesIPv4),
 	}
 
-	cidrsipv6 := []*string{}
-	if nodesipv6 := fctx.whiteboard.Get(NodesSubnetIPv6CIDR); ptr.Deref(nodesipv6, "") != "" {
-		cidrsipv6 = append(cidrsipv6, nodesipv6)
+	cidrsIPv6 := []*string{}
+	if nodesIPv6 := fctx.whiteboard.Get(NodesSubnetIPv6CIDR); ptr.Deref(nodesIPv6, "") != "" {
+		cidrsIPv6 = append(cidrsIPv6, nodesIPv6)
 	}
-	if servicesipv6 := fctx.whiteboard.Get(ServicesSubnetIPv6CIDR); ptr.Deref(servicesipv6, "") != "" {
-		cidrsipv6 = append(cidrsipv6, servicesipv6)
+	if servicesIPv6 := fctx.whiteboard.Get(ServicesSubnetIPv6CIDR); ptr.Deref(servicesIPv6, "") != "" {
+		cidrsIPv6 = append(cidrsIPv6, servicesIPv6)
 	}
 
-	if len(cidrsipv6) > 0 {
+	if len(cidrsIPv6) > 0 {
 		rules = append(rules,
-			firewallRuleAllowInternalIPv6(shared.FirewallRuleAllowInternalNameIPv6(fctx.clusterName), vpc.SelfLink, cidrsipv6),
+			firewallRuleAllowInternalIPv6(shared.FirewallRuleAllowInternalNameIPv6(fctx.clusterName), vpc.SelfLink, cidrsIPv6),
 			firewallRuleAllowHealthChecks(shared.FirewallRuleAllowHealthChecksNameIPv6(fctx.clusterName), vpc.SelfLink, healthCheckSourceRangesIPv6),
 		)
 	}

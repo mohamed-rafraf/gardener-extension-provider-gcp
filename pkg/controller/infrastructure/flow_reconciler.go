@@ -83,8 +83,7 @@ func (f *FlowReconciler) Reconcile(ctx context.Context, infra *extensionsv1alpha
 		Factory:        gcpclient.New(),
 		Client:         f.client,
 		Networking:     cluster.Shoot.Spec.Networking,
-	},
-	)
+	})
 	if err != nil {
 		return fmt.Errorf("failed to create flow context: %v", err)
 	}
@@ -156,11 +155,9 @@ func (f *FlowReconciler) infrastructureStateFromRaw(infra *extensionsv1alpha1.In
 }
 
 func (f *FlowReconciler) migrateFromTerraform(ctx context.Context, infra *extensionsv1alpha1.Infrastructure) (*gcp.InfrastructureState, error) {
-	var (
-		state = &gcp.InfrastructureState{
-			Data: map[string]string{},
-		}
-	)
+	state := &gcp.InfrastructureState{
+		Data: map[string]string{},
+	}
 	// we want to prevent allowing the deletion of infrastructure if there may be still resources in the cloudprovider. We will initialize the data
 	// with a specific "marker" so that the deletion
 	tf, err := internal.NewTerraformer(f.log, f.restConfig, infrainternal.TerraformerPurpose, infra, f.disableProjectedTokenMount)

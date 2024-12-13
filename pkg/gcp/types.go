@@ -16,7 +16,7 @@ const (
 	CloudControllerManagerImageName = "cloud-controller-manager"
 	// IngressGCEImageName is the name of the ingress-gce image.
 	IngressGCEImageName = "ingress-gce"
-	// DefaultHTTPBackendImageName is the name of the csi-driver image.
+	// DefaultHTTPBackendImageName is the name of the default-http-backend image.
 	DefaultHTTPBackendImageName = "default-http-backend"
 	// CSIDriverImageName is the name of the csi-driver image.
 	CSIDriverImageName = "csi-driver"
